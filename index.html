@@ -128,7 +128,7 @@
           }
 
           const { jsPDF } = window.jspdf;
-          const doc = new jsPDF({ unit: 'pt' }); // Using points for better control
+          const doc = new jsPDF({ unit: 'pt' });
 
           // Fetch the signature image and convert it to a Base64 string for embedding.
           let signatureImgData = null;
@@ -149,58 +149,75 @@
 
           const pageHeight = doc.internal.pageSize.getHeight();
           const pageWidth = doc.internal.pageSize.getWidth();
-          const margin = 40;
+          const margin = 72; // Increased margin for better spacing (1 inch)
           let y = margin;
+          const lineHeight = 1.4; // Line height factor
 
-          // Note: Calibri is not a standard PDF font. Helvetica is a clean, professional substitute.
+          // --- Header ---
+          const headerSubTextSize = 10;
+          const headerNameSize = headerSubTextSize * 2; // Twice as big as other header text
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(headerNameSize);
+          doc.text('Dr Riaan Combrinck', margin, y);
+          y += headerNameSize;
+          
           doc.setFont('helvetica', 'normal');
-
-          // Header
-          const headerText = [
-            'Dr Riaan Combrinck',
+          doc.setFontSize(headerSubTextSize);
+          
+          const headerLines = [
             'GP Anaesthetist',
             'MBChB (Pret 2016), DA (SA 2020), ATLS, ACLS, PALS, BLS',
             'MP: 0847003, PP: 0920479',
             'Email: drcombrinck@healthcollectiveheal.com'
           ];
-          doc.setFontSize(10);
-          doc.text(headerText, margin, y);
-          y += (headerText.length * 10) + 30;
 
-          // Patient Info Section
+          headerLines.forEach(line => {
+              y += headerSubTextSize * lineHeight;
+              doc.text(line, margin, y);
+          });
+
+          y += 70; // Add significant space after header
+
+          // --- Patient Info Section ---
+          const bodyFontSize = 12;
+          const labelFontSize = 9;
           const today = new Date();
           const formattedDate = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          const underlineLength = 220;
 
-          doc.setFontSize(11);
           // Patient Name
+          doc.setFontSize(bodyFontSize);
           doc.text(patientName || ' ', margin, y);
-          doc.line(margin, y + 3, margin + 200, y + 3);
-          doc.setFontSize(9);
-          doc.setTextColor(100);
-          doc.text('Patient name', margin, y + 15);
+          doc.line(margin, y + 4, margin + underlineLength, y + 4); // Line below text
+          doc.setFontSize(labelFontSize);
+          doc.setTextColor(100); // Grey text for label
+          doc.text('Patient name', margin, y + 18);
 
           // Date
-          const dateX = pageWidth - margin - 150;
-          doc.setFontSize(11);
-          doc.setTextColor(0);
+          const dateX = pageWidth - margin - underlineLength;
+          doc.setFontSize(bodyFontSize);
+          doc.setTextColor(0); // Black text for date
           doc.text(formattedDate, dateX, y);
-          doc.line(dateX, y + 3, dateX + 150, y + 3);
-          doc.setFontSize(9);
+          doc.line(dateX, y + 4, dateX + underlineLength, y + 4);
+          doc.setFontSize(labelFontSize);
           doc.setTextColor(100);
-          doc.text('Date', dateX, y + 15);
+          doc.text('Date', dateX, y + 18);
           doc.setTextColor(0);
 
-          y += 50;
+          y += 80; // More space before the main content
 
-          // Main Schedule Text
-          doc.setFontSize(11);
+          // --- Main Schedule Text ---
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(bodyFontSize);
           const splitText = doc.splitTextToSize(outputText, pageWidth - margin * 2);
-          doc.text(splitText, margin, y);
+          doc.text(splitText, margin, y, { lineHeightFactor: 1.5 }); // Added line height for readability
 
-          // Footer Image (527x237)
+          // --- Footer Image ---
           if (signatureImgData) {
-            const imgWidth = 527 * 0.25; // Scale down
-            const imgHeight = 237 * 0.25;
+            const imgScale = 0.35; // Increased image scale
+            const imgWidth = 527 * imgScale;
+            const imgHeight = 237 * imgScale;
             const imgY = pageHeight - margin - imgHeight;
             doc.addImage(signatureImgData, 'PNG', margin, imgY, imgWidth, imgHeight);
           }
