@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Medical Procedure Schedule Generator</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
+    
+    <!-- React Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel to transpile JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+      /* A little extra style for a smooth dark mode transition */
+      body {
+        transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-100 dark:bg-slate-900 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      // Helper function to check for dark mode preference
+      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+
+      // --- Icon Components ---
+      const ClipboardIcon = (props) => (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          {...props}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a2.25 2.25 0 01-2.25 2.25h-1.5a2.25 2.25 0 01-2.25-2.25v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"
+          />
+        </svg>
+      );
+
+      const CheckIcon = (props) => (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          {...props}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+      );
+
+      // --- Main App Component ---
+      const App = () => {
+        const [procedureDate, setProcedureDate] = React.useState(new Date().toISOString().split('T')[0]);
+        const [outputText, setOutputText] = React.useState('');
+        const [isCopied, setIsCopied] = React.useState(false);
+
+        const handleGenerate = React.useCallback(() => {
+          if (!procedureDate) {
+            setOutputText('Please select a procedure date.');
+            return;
+          }
+
+          // Use local timezone for date calculations to avoid UTC-related day shifts
+          const localDate = new Date(procedureDate);
+          const procDate = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
+
+          const addDays = (date, days) => {
+            const result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+          };
+
+          const formatDate = (date) => {
+            const day = date.getDate();
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+          };
+
+          const formatWeekdayAndDate = (date) => {
+            const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+            return `${weekday} (${formatDate(date)})`;
+          };
+
+          const dateList = [
+            addDays(procDate, -2),
+            addDays(procDate, -1),
+            procDate,
+            addDays(procDate, 1),
+            addDays(procDate, 2),
+          ];
+
+          const lastWarfarinDate = addDays(procDate, -4);
+          const skipDay1 = addDays(procDate, -3).toLocaleDateString('en-US', { weekday: 'long' });
+          const skipDay2 = addDays(procDate, -2).toLocaleDateString('en-US', { weekday: 'long' });
+          const skipDay3 = addDays(procDate, -1).toLocaleDateString('en-US', { weekday: 'long' });
+
+          const listItems = dateList.map(date => {
+            if (date.getTime() === procDate.getTime()) {
+              const weekday = date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+              return `\t- OMIT ${weekday} (${formatDate(date)})`;
+            }
+            return `\t- ${formatWeekdayAndDate(date)}`;
+          }).join('\n');
+
+          const generatedText = `Clexane 40mg SC mane
+
+${listItems}
+
+
+Last dose of Warfarin on ${formatWeekdayAndDate(lastWarfarinDate)}.
+Skip Warfarin dose ${skipDay1}/${skipDay2}/${skipDay3}.
+
+Omit Clexane on the morning of procedure.
+INR in hospital + 1 week after procedure`;
+
+          setOutputText(generatedText);
+        }, [procedureDate]);
+        
+        const handleCopy = React.useCallback(() => {
+          if (outputText) {
+              navigator.clipboard.writeText(outputText).then(() => {
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2500);
+              }).catch(err => {
+                  console.error('Failed to copy text: ', err);
+              });
+          }
+        }, [outputText]);
+
+        // Automatically generate on initial render
+        React.useEffect(() => {
+            handleGenerate();
+        }, [handleGenerate]);
+
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 md:p-8">
+              <div className="text-center mb-8">
+                  <h1 className="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100">Medical Schedule Generator</h1>
+                  <p className="text-slate-600 dark:text-slate-400 mt-2">Generate instructions for Clexane & Warfarin based on a procedure date.</p>
+              </div>
+
+              <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="w-full">
+                          <label htmlFor="procedure-date" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                              Select Procedure Date
+                          </label>
+                          <input
+                              type="date"
+                              id="procedure-date"
+                              value={procedureDate}
+                              onChange={(e) => setProcedureDate(e.target.value)}
+                              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                          />
+                      </div>
+                      <button
+                          onClick={handleGenerate}
+                          className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-800 transition-all duration-200 self-end mt-2 sm:mt-0"
+                          style={{paddingTop: '0.625rem', paddingBottom: '0.625rem'}}
+                      >
+                          Generate
+                      </button>
+                  </div>
+
+                  {outputText && (
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          Generated Schedule
+                      </label>
+                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                          <pre className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-mono break-words">
+                              {outputText}
+                          </pre>
+                      </div>
+                      <button
+                          onClick={handleCopy}
+                          className="absolute top-8 right-2 p-2 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                          aria-label="Copy to clipboard"
+                      >
+                          {isCopied ? <CheckIcon className="w-5 h-5 text-green-500" /> : <ClipboardIcon className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  )}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // --- React DOM Render ---
+      const container = document.getElementById('root');
+      const root = ReactDOM.createRoot(container);
+      root.render(
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      );
+    </script>
+  </body>
+</html>
