@@ -19,6 +19,9 @@
     
     <!-- Babel to transpile JSX in the browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- jsPDF for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
       /* A little extra style for a smooth dark mode transition */
@@ -49,38 +52,28 @@
 
       // --- Icon Components ---
       const ClipboardIcon = (props) => (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          {...props}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a2.25 2.25 0 01-2.25 2.25h-1.5a2.25 2.25 0 01-2.25-2.25v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"
-          />
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props} >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a2.25 2.25 0 01-2.25 2.25h-1.5a2.25 2.25 0 01-2.25-2.25v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
         </svg>
       );
 
       const CheckIcon = (props) => (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          {...props}
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props} >
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
         </svg>
       );
+      
+      const DownloadIcon = (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+      );
+
 
       // --- Main App Component ---
       const App = () => {
         const [procedureDate, setProcedureDate] = React.useState(new Date().toISOString().split('T')[0]);
+        const [patientName, setPatientName] = React.useState('');
         const [outputText, setOutputText] = React.useState('');
         const [isCopied, setIsCopied] = React.useState(false);
 
@@ -90,7 +83,6 @@
             return;
           }
 
-          // Use local timezone for date calculations to avoid UTC-related day shifts
           const localDate = new Date(procedureDate);
           const procDate = new Date(localDate.getFullYear(), localDate.getMonth(), localDate.getDate());
 
@@ -100,30 +92,12 @@
             return result;
           };
 
-          const formatDate = (date) => {
-            const day = date.getDate();
-            const month = date.getMonth() + 1;
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-          };
+          const formatDate = (date) => `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+          const formatWeekdayAndDate = (date) => `${date.toLocaleDateString('en-US', { weekday: 'long' })} (${formatDate(date)})`;
 
-          const formatWeekdayAndDate = (date) => {
-            const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
-            return `${weekday} (${formatDate(date)})`;
-          };
-
-          const dateList = [
-            addDays(procDate, -2),
-            addDays(procDate, -1),
-            procDate,
-            addDays(procDate, 1),
-            addDays(procDate, 2),
-          ];
-
+          const dateList = [addDays(procDate, -2), addDays(procDate, -1), procDate, addDays(procDate, 1), addDays(procDate, 2)];
           const lastWarfarinDate = addDays(procDate, -4);
-          const skipDay1 = addDays(procDate, -3).toLocaleDateString('en-US', { weekday: 'long' });
-          const skipDay2 = addDays(procDate, -2).toLocaleDateString('en-US', { weekday: 'long' });
-          const skipDay3 = addDays(procDate, -1).toLocaleDateString('en-US', { weekday: 'long' });
+          const skipDays = [-3, -2, -1].map(d => addDays(procDate, d).toLocaleDateString('en-US', { weekday: 'long' }));
 
           const listItems = dateList.map(date => {
             if (date.getTime() === procDate.getTime()) {
@@ -133,16 +107,7 @@
             return `\t- ${formatWeekdayAndDate(date)}`;
           }).join('\n');
 
-          const generatedText = `Clexane 40mg SC mane
-
-${listItems}
-
-
-Last dose of Warfarin on ${formatWeekdayAndDate(lastWarfarinDate)}.
-Skip Warfarin dose ${skipDay1}/${skipDay2}/${skipDay3}.
-
-Omit Clexane on the morning of procedure.
-INR in hospital + 1 week after procedure`;
+          const generatedText = `Clexane 40mg SC mane\n\n${listItems}\n\n\nLast dose of Warfarin on ${formatWeekdayAndDate(lastWarfarinDate)}.\nSkip Warfarin dose ${skipDays.join('/')}.\n\nOmit Clexane on the morning of procedure.\nINR in hospital + 1 week after procedure`;
 
           setOutputText(generatedText);
         }, [procedureDate]);
@@ -152,16 +117,100 @@ INR in hospital + 1 week after procedure`;
               navigator.clipboard.writeText(outputText).then(() => {
                   setIsCopied(true);
                   setTimeout(() => setIsCopied(false), 2500);
-              }).catch(err => {
-                  console.error('Failed to copy text: ', err);
               });
           }
         }, [outputText]);
 
+        const handleGeneratePdf = async () => {
+          if (!outputText) {
+            alert('Please generate the schedule text first.');
+            return;
+          }
+
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ unit: 'pt' }); // Using points for better control
+
+          // Fetch the signature image and convert it to a Base64 string for embedding.
+          let signatureImgData = null;
+          try {
+            const response = await fetch('Signature.png');
+            if (!response.ok) throw new Error('Image not found at path: Signature.png');
+            const blob = await response.blob();
+            signatureImgData = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error("Could not load signature image:", error);
+            alert("Warning: Could not load the signature image. Make sure 'Signature.png' is in the same directory. The PDF will be generated without it.");
+          }
+
+          const pageHeight = doc.internal.pageSize.getHeight();
+          const pageWidth = doc.internal.pageSize.getWidth();
+          const margin = 40;
+          let y = margin;
+
+          // Note: Calibri is not a standard PDF font. Helvetica is a clean, professional substitute.
+          doc.setFont('helvetica', 'normal');
+
+          // Header
+          const headerText = [
+            'Dr Riaan Combrinck',
+            'GP Anaesthetist',
+            'MBChB (Pret 2016), DA (SA 2020), ATLS, ACLS, PALS, BLS',
+            'MP: 0847003, PP: 0920479',
+            'Email: drcombrinck@healthcollectiveheal.com'
+          ];
+          doc.setFontSize(10);
+          doc.text(headerText, margin, y);
+          y += (headerText.length * 10) + 30;
+
+          // Patient Info Section
+          const today = new Date();
+          const formattedDate = today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+          doc.setFontSize(11);
+          // Patient Name
+          doc.text(patientName || ' ', margin, y);
+          doc.line(margin, y + 3, margin + 200, y + 3);
+          doc.setFontSize(9);
+          doc.setTextColor(100);
+          doc.text('Patient name', margin, y + 15);
+
+          // Date
+          const dateX = pageWidth - margin - 150;
+          doc.setFontSize(11);
+          doc.setTextColor(0);
+          doc.text(formattedDate, dateX, y);
+          doc.line(dateX, y + 3, dateX + 150, y + 3);
+          doc.setFontSize(9);
+          doc.setTextColor(100);
+          doc.text('Date', dateX, y + 15);
+          doc.setTextColor(0);
+
+          y += 50;
+
+          // Main Schedule Text
+          doc.setFontSize(11);
+          const splitText = doc.splitTextToSize(outputText, pageWidth - margin * 2);
+          doc.text(splitText, margin, y);
+
+          // Footer Image (527x237)
+          if (signatureImgData) {
+            const imgWidth = 527 * 0.25; // Scale down
+            const imgHeight = 237 * 0.25;
+            const imgY = pageHeight - margin - imgHeight;
+            doc.addImage(signatureImgData, 'PNG', margin, imgY, imgWidth, imgHeight);
+          }
+
+          doc.save(`${patientName.replace(/ /g, '_') || 'patient'}-schedule.pdf`);
+        };
+
+
         // Automatically generate on initial render
-        React.useEffect(() => {
-            handleGenerate();
-        }, [handleGenerate]);
+        React.useEffect(() => { handleGenerate(); }, [handleGenerate]);
 
         return (
           <div className="min-h-screen flex items-center justify-center p-4">
@@ -172,25 +221,47 @@ INR in hospital + 1 week after procedure`;
               </div>
 
               <div className="space-y-6">
-                  <div className="flex flex-col sm:flex-row items-center gap-4">
-                      <div className="w-full">
-                          <label htmlFor="procedure-date" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                              Select Procedure Date
-                          </label>
-                          <input
-                              type="date"
-                              id="procedure-date"
-                              value={procedureDate}
-                              onChange={(e) => setProcedureDate(e.target.value)}
-                              className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
-                          />
-                      </div>
+                  <div>
+                      <label htmlFor="patient-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          Patient Name
+                      </label>
+                      <input
+                          type="text"
+                          id="patient-name"
+                          value={patientName}
+                          onChange={(e) => setPatientName(e.target.value)}
+                          placeholder="Enter patient's full name"
+                          className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                      />
+                  </div>
+
+                  <div>
+                      <label htmlFor="procedure-date" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          Select Procedure Date
+                      </label>
+                      <input
+                          type="date"
+                          id="procedure-date"
+                          value={procedureDate}
+                          onChange={(e) => setProcedureDate(e.target.value)}
+                          className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow"
+                      />
+                  </div>
+                  
+                  <div className="border-t border-slate-200 dark:border-slate-700 pt-6 flex flex-col sm:flex-row gap-4 justify-end">
                       <button
                           onClick={handleGenerate}
-                          className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-800 transition-all duration-200 self-end mt-2 sm:mt-0"
-                          style={{paddingTop: '0.625rem', paddingBottom: '0.625rem'}}
+                          className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-slate-800 transition-all duration-200"
                       >
-                          Generate
+                          Generate Text
+                      </button>
+                       <button
+                          onClick={handleGeneratePdf}
+                          disabled={!outputText}
+                          className="w-full sm:w-auto px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-slate-800 transition-all duration-200 flex items-center justify-center gap-2 disabled:bg-slate-400 disabled:cursor-not-allowed"
+                      >
+                          <DownloadIcon className="w-5 h-5" />
+                          Generate PDF
                       </button>
                   </div>
 
@@ -222,11 +293,7 @@ INR in hospital + 1 week after procedure`;
       // --- React DOM Render ---
       const container = document.getElementById('root');
       const root = ReactDOM.createRoot(container);
-      root.render(
-        <React.StrictMode>
-          <App />
-        </React.StrictMode>
-      );
+      root.render(<App />);
     </script>
   </body>
 </html>
